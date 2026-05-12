@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รีเช็คใบเสนอราคา</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-dark: #085041;
+    --bg: #F7F6F2;
+    --card: #FFFFFF;
+    --text: #1a1a1a;
+    --muted: #888780;
+    --border: #E0DED8;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  header {
+    background: var(--green-dark);
+    padding: 20px 20px 28px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.01em;
+  }
+
+  .header-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 2px;
+  }
+
+  .reset-btn {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.12);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 99px;
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+  }
+
+  .reset-btn:active { opacity: 0.7; }
+
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #5DCAA5;
+    border-radius: 99px;
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  }
+
+  .prog-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 8px;
+    text-align: right;
+  }
+
+  main { padding: 20px 16px 0; max-width: 480px; margin: 0 auto; }
+
+  .section { margin-bottom: 20px; }
+
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+
+  .sec-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .add-btn {
+    font-size: 12px;
+    color: var(--green);
+    background: var(--green-light);
+    border: none;
+    padding: 4px 10px;
+    border-radius: 99px;
+    cursor: pointer;
+    font-family: 'Sarabun', sans-serif;
+    font-weight: 500;
+  }
+
+  .add-btn:active { opacity: 0.7; }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 13px 14px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    transition: opacity 0.2s, border-color 0.2s;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .task:active { opacity: 0.75; }
+  .task.done { opacity: 0.45; border-color: transparent; background: #f3f3f0; }
+  .task.done .task-text { text-decoration: line-through; color: var(--muted); }
+
+  .cb {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    margin-top: 0;
+  }
+
+  .task.done .cb {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .cb svg { display: none; }
+  .task.done .cb svg { display: block; }
+
+  .task-right { flex: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+
+  .task-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  .del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ccc;
+    padding: 2px;
+    flex-shrink: 0;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .del-btn:active { color: #e24b4a; }
+
+  .add-form {
+    display: none;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .add-form.open { display: flex; }
+
+  .add-form input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'Sarabun', sans-serif;
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+  }
+
+  .add-form input:focus { border-color: var(--green); }
+
+  .add-form .save-btn {
+    padding: 10px 16px;
+    background: var(--green);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 14px;
+    font-family: 'Sarabun', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .done-banner {
+    display: none;
+    text-align: center;
+    background: var(--green-light);
+    border: 1px solid #9FE1CB;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 0 0 20px;
+  }
+
+  .done-banner .icon { font-size: 32px; margin-bottom: 6px; }
+  .done-banner p { font-size: 15px; font-weight: 600; color: var(--green-dark); }
+  .done-banner small { font-size: 12px; color: var(--green); display: block; margin-top: 4px; }
+
+  .export-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .exp-btn {
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    font-size: 13px;
+    font-family: 'Sarabun', sans-serif;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+
+  .exp-btn:active { background: var(--bg); }
+
+  .edit-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (min-width: 480px) {
+    main { padding: 24px 24px 0; }
+    header { padding: 24px 24px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div>
+      <h1>รีเช็คใบเสนอราคา</h1>
+      <div class="header-sub">ชนิกานต์ ปทุมรัตน์</div>
+    </div>
+    <button class="reset-btn" onclick="resetChecks()">รีเซ็ตติ๊ก</button>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="bar" style="width:0%"></div>
+  </div>
+  <div class="prog-label" id="prog">0 / 0 รายการ</div>
+</header>
+
+<main>
+  <div class="done-banner" id="done-banner">
+    <div class="icon">✅</div>
+    <p>เสร็จสมบูรณ์ทุกรายการ!</p>
+    <small>พร้อมส่งลูกค้าแล้ว</small>
+  </div>
+
+  <div id="sections-wrap"></div>
+
+  <div class="export-row">
+    <button class="exp-btn" onclick="exportTxt()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      บันทึก .txt
+    </button>
+    <button class="exp-btn" id="copy-btn" onclick="copyAll()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      คัดลอก
+    </button>
+  </div>
+
+  <div class="edit-hint">กดค้างที่ task เพื่อแก้ไขชื่อ</div>
+</main>
+
+<script>
+const DEFAULTS = [
+  { title: "ข้อมูลทั่วไป", items: [
+    "กรอกวันที่ถูกต้อง",
+    "ชื่อ-นามสกุลผู้ขายถูกต้อง",
+    "ที่อยู่ผู้ขายครบถ้วน",
+    "เลขประจำตัวผู้เสียภาษีถูกต้อง (1659902105788)"
+  ]},
+  { title: "ข้อมูลผู้ซื้อ", items: [
+    "ชื่อบริษัทลูกค้าถูกต้อง",
+    "ที่อยู่ลูกค้าครบถ้วน",
+    "Tax ID ลูกค้าถูกต้อง (0105563031259)"
+  ]},
+  { title: "รายการและราคา", items: [
+    "กรอกรายการบริการครบทุกข้อ",
+    "จำนวนและราคาต่อหน่วยถูกต้อง",
+    "ยอดรวมแต่ละรายการถูกต้อง",
+    "รวมเป็นเงิน (ก่อนหักภาษี) ถูกต้อง",
+    "คำนวณหักภาษี ณ ที่จ่าย 3% ถูกต้อง",
+    "สรุปยอดสุทธิถูกต้อง"
+  ]},
+  { title: "ก่อนส่ง", items: [
+    "ลงลายมือชื่อแล้ว",
+    "บันทึกไฟล์เป็น PDF แล้ว",
+    "ส่งให้ลูกค้าเรียบร้อย"
+  ]}
+];
+
+let state = loadState();
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('checklist_v1');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return DEFAULTS.map(sec => ({
+    title: sec.title,
+    items: sec.items.map(t => ({ text: t, done: false }))
+  }));
+}
+
+function saveState() {
+  try { localStorage.setItem('checklist_v1', JSON.stringify(state)); } catch(e) {}
+}
+
+function render() {
+  const wrap = document.getElementById('sections-wrap');
+  wrap.innerHTML = '';
+
+  state.forEach((sec, si) => {
+    const section = document.createElement('div');
+    section.className = 'section';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'sec-header';
+    hdr.innerHTML = `<span class="sec-title">${esc(sec.title)}</span>
+      <button class="add-btn" onclick="toggleForm(${si})">+ เพิ่ม task</button>`;
+    section.appendChild(hdr);
+
+    sec.items.forEach((item, ii) => {
+      const t = document.createElement('div');
+      t.className = 'task' + (item.done ? ' done' : '');
+      t.onclick = () => toggle(si, ii);
+      t.innerHTML = `
+        <div class="cb">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+            <polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="task-right">
+          <span class="task-text">${esc(item.text)}</span>
+          <button class="del-btn" onclick="event.stopPropagation();delTask(${si},${ii})" aria-label="ลบ">✕</button>
+        </div>`;
+
+      // long press to edit
+      let pressTimer;
+      t.addEventListener('touchstart', () => {
+        pressTimer = setTimeout(() => editTask(si, ii), 600);
+      });
+      t.addEventListener('touchend', () => clearTimeout(pressTimer));
+      t.addEventListener('touchmove', () => clearTimeout(pressTimer));
+      t.addEventListener('dblclick', () => editTask(si, ii));
+
+      section.appendChild(t);
+    });
+
+    const form = document.createElement('div');
+    form.className = 'add-form';
+    form.id = 'form-' + si;
+    form.innerHTML = `<input type="text" id="inp-${si}" placeholder="ชื่อ task ใหม่..." onkeydown="if(event.key==='Enter')addTask(${si})">
+      <button class="save-btn" onclick="addTask(${si})">เพิ่ม</button>`;
+    section.appendChild(form);
+    wrap.appendChild(section);
+  });
+
+  updateProgress();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateProgress() {
+  let total = 0, done = 0;
+  state.forEach(s => s.items.forEach(i => { total++; if (i.done) done++; }));
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('bar').style.width = pct + '%';
+  document.getElementById('prog').textContent = done + ' / ' + total + ' รายการ';
+  document.getElementById('done-banner').style.display = (done === total && total > 0) ? 'block' : 'none';
+}
+
+function toggle(si, ii) {
+  state[si].items[ii].done = !state[si].items[ii].done;
+  saveState(); render();
+}
+
+function delTask(si, ii) {
+  if (!confirm('ลบ "' + state[si].items[ii].text + '" ?')) return;
+  state[si].items.splice(ii, 1);
+  saveState(); render();
+}
+
+function editTask(si, ii) {
+  const cur = state[si].items[ii].text;
+  const newText = prompt('แก้ไข task:', cur);
+  if (newText && newText.trim()) {
+    state[si].items[ii].text = newText.trim();
+    saveState(); render();
+  }
+}
+
+function toggleForm(si) {
+  const f = document.getElementById('form-' + si);
+  f.classList.toggle('open');
+  if (f.classList.contains('open')) {
+    document.getElementById('inp-' + si).focus();
+  }
+}
+
+function addTask(si) {
+  const inp = document.getElementById('inp-' + si);
+  const txt = (inp.value || '').trim();
+  if (!txt) return;
+  state[si].items.push({ text: txt, done: false });
+  inp.value = '';
+  document.getElementById('form-' + si).classList.remove('open');
+  saveState(); render();
+}
+
+function resetChecks() {
+  if (!confirm('รีเซ็ตการติ๊กทั้งหมด?')) return;
+  state.forEach(s => s.items.forEach(i => i.done = false));
+  saveState(); render();
+}
+
+function exportTxt() {
+  let out = 'รีเช็คใบเสนอราคา — ' + new Date().toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'}) + '\n\n';
+  state.forEach(sec => {
+    out += '[ ' + sec.title + ' ]\n';
+    sec.items.forEach(i => out += (i.done ? '[✓] ' : '[ ] ') + i.text + '\n');
+    out += '\n';
+  });
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(out);
+  a.download = 'checklist_' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+}
+
+function copyAll() {
+  let out = 'รีเช็คใบเสนอราคา\n\n';
+  state.forEach(sec => {
+    out += sec.title + '\n';
+    sec.items.forEach(i => out += (i.done ? '✅ ' : '⬜ ') + i.text + '\n');
+    out += '\n';
+  });
+  navigator.clipboard.writeText(out).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'คัดลอกแล้ว!';
+    setTimeout(() => btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> คัดลอก`, 2000);
+  }).catch(() => alert(out));
+}
+
+render();
+</script>
+</body>
+</html>
