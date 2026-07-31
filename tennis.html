@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>วิเคราะห์วงสวิงเทนนิส — Kinetic Chain Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --gridline: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-1-track: #cde2fb;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --gridline: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-1-track: #184f95;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-1-track: #184f95;
+  }
+
+  * { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:'Sarabun',sans-serif;
+    background:var(--page);
+    color:var(--text-primary);
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  header {
+    background:var(--surface-1);
+    border-bottom:1px solid var(--border);
+    padding:20px 20px 16px;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  header h1 { font-size:18px; font-weight:600; }
+  header p { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+  main { max-width:640px; margin:0 auto; padding:20px 16px 0; }
+  .card {
+    background:var(--surface-1);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:16px;
+  }
+  .card h2 {
+    font-size:13px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-secondary);
+    margin-bottom:12px;
+  }
+  label { font-size:13px; color:var(--text-secondary); display:block; margin-bottom:6px; }
+  select, input[type=file] {
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--gridline);
+    border-radius:8px;
+    background:var(--surface-1);
+    color:var(--text-primary);
+    font-family:'Sarabun',sans-serif;
+    font-size:14px;
+  }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .video-wrap {
+    position:relative;
+    width:100%;
+    background:#000;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  video { width:100%; display:block; }
+  canvas { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+  .controls { display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  button {
+    font-family:'Sarabun',sans-serif;
+    font-size:13px;
+    font-weight:500;
+    padding:9px 14px;
+    border-radius:8px;
+    border:1px solid var(--gridline);
+    background:var(--surface-1);
+    color:var(--text-primary);
+    cursor:pointer;
+  }
+  button.primary { background:var(--series-1); border-color:var(--series-1); color:#fff; }
+  button.primary:disabled { opacity:.4; cursor:not-allowed; }
+  button:active { opacity:.7; }
+  .speed-group { display:flex; gap:4px; }
+  .speed-group button.active { background:var(--series-1); color:#fff; border-color:var(--series-1); }
+  .mark-row { display:flex; gap:8px; margin-top:10px; }
+  .mark-row button { flex:1; }
+  .mark-status {
+    font-size:12px;
+    color:var(--text-secondary);
+    margin-top:8px;
+    display:flex;
+    justify-content:space-between;
+  }
+  .mark-status b { color:var(--text-primary); }
+  .status-line { font-size:12px; color:var(--muted); margin-top:8px; }
+  .hint { font-size:11px; color:var(--muted); margin-top:10px; line-height:1.6; }
+
+  .results { display:none; }
+  .hero { display:flex; align-items:center; gap:20px; }
+  .meter { position:relative; width:112px; height:112px; flex-shrink:0; }
+  .meter svg { transform:rotate(-90deg); }
+  .meter-value {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .meter-value b { font-size:26px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .meter-value span { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+  .hero-text b { display:block; font-size:15px; margin-bottom:4px; }
+  .hero-text p { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+
+  .bar-row { margin-bottom:14px; }
+  .bar-label { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; margin-bottom:5px; gap:8px; }
+  .bar-label b { font-weight:600; }
+  .bar-label .val { font-weight:600; font-variant-numeric:tabular-nums; flex-shrink:0; }
+  .bar-track { height:10px; background:var(--gridline); border-radius:99px; overflow:hidden; }
+  .bar-fill { height:100%; background:var(--series-1); border-radius:99px; transition:width .5s cubic-bezier(.4,0,.2,1); }
+  .bar-note { font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.5; }
+
+  .disclaimer {
+    font-size:11px; color:var(--muted); line-height:1.6;
+    border-top:1px solid var(--border); margin-top:8px; padding-top:12px;
+  }
+  .loading-banner {
+    font-size:12px; color:var(--text-secondary);
+    background:var(--series-1-track); border-radius:8px;
+    padding:10px 12px; margin-bottom:14px; display:none;
+  }
+  .error-banner {
+    font-size:13px; line-height:1.6; color:#fff;
+    background:#d03b3b; border-radius:8px;
+    padding:12px 14px; margin-bottom:14px; display:none;
+  }
+  .error-banner b { display:block; margin-bottom:4px; font-weight:600; }
+  .error-banner code {
+    background:rgba(0,0,0,.25); padding:1px 5px; border-radius:4px;
+    font-size:12px; word-break:break-all;
+  }
+
+  @media (min-width:480px) {
+    main { padding:24px 24px 0; }
+    header { padding:24px 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>วิเคราะห์วงสวิงเทนนิส</h1>
+  <p>ให้คะแนน Kinetic Chain แต่ละส่วนของร่างกาย เต็ม 100 คะแนน</p>
+</header>
+
+<main>
+
+  <div class="card" id="setup-card">
+    <div class="error-banner" id="error-banner"></div>
+    <div class="loading-banner" id="loading-banner">กำลังโหลดโมเดล AI (MediaPipe Pose)...</div>
+    <h2>1. ตั้งค่าการวิเคราะห์</h2>
+    <div class="row">
+      <div>
+        <label>ประเภทการตี</label>
+        <select id="stroke-type">
+          <option value="serve">เสิร์ฟ (Serve)</option>
+          <option value="forehand">โฟร์แฮนด์ (Forehand)</option>
+          <option value="backhand">แบ็คแฮนด์ (Backhand)</option>
+        </select>
+      </div>
+      <div>
+        <label>มือถนัด</label>
+        <select id="handedness">
+          <option value="right">ขวา</option>
+          <option value="left">ซ้าย</option>
+        </select>
+      </div>
+    </div>
+    <label>อัปโหลดวิดีโอ (ถ่ายด้านข้าง เห็นทั้งตัวชัดเจน)</label>
+    <input type="file" id="video-file" accept="video/*">
+  </div>
+
+  <div class="card" id="video-card" style="display:none;">
+    <h2>2. เล่นวิดีโอ &amp; ทำเครื่องหมายจังหวะ</h2>
+    <div class="video-wrap">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="controls">
+      <button id="play-btn" type="button">▶ เล่น</button>
+      <button id="step-back" type="button">◀ ทีละเฟรม</button>
+      <button id="step-fwd" type="button">ทีละเฟรม ▶</button>
+      <div class="speed-group">
+        <button data-speed="1" class="active" type="button">1x</button>
+        <button data-speed="0.5" type="button">0.5x</button>
+        <button data-speed="0.25" type="button">0.25x</button>
+      </div>
+    </div>
+    <div class="mark-row">
+      <button id="mark-load" type="button">📍 จุดย่อเข่า/เริ่มสวิง</button>
+      <button id="mark-contact" type="button">📍 จุดปะทะลูก (Contact)</button>
+    </div>
+    <div class="mark-status">
+      <span>เริ่มสวิง: <b id="load-time">ยังไม่ระบุ</b></span>
+      <span>ปะทะ: <b id="contact-time">ยังไม่ระบุ</b></span>
+    </div>
+    <div class="status-line" id="frame-count">เก็บข้อมูลท่าทางแล้ว 0 เฟรม</div>
+    <div class="hint">แนะนำ: เปิดวิดีโอที่ 0.25x แล้วปล่อยให้เล่นผ่านช่วงย่อเข่าจนถึงจุดปะทะให้ครบ 1 รอบก่อน (ระบบจะเก็บข้อมูลท่าทางระหว่างเล่น) แล้วค่อยย้อนกลับมากดปุ่มทำเครื่องหมายทั้งสองจุดด้วยปุ่ม "ทีละเฟรม" เพื่อความแม่นยำ</div>
+    <button class="primary" id="analyze-btn" style="width:100%; margin-top:14px;" disabled type="button">วิเคราะห์คะแนน</button>
+  </div>
+
+  <div class="card results" id="results-card">
+    <h2>3. ผลคะแนน Kinetic Chain</h2>
+    <div class="hero">
+      <div class="meter">
+        <svg width="112" height="112" viewBox="0 0 112 112">
+          <circle cx="56" cy="56" r="48" fill="none" stroke="var(--series-1-track)" stroke-width="10"/>
+          <circle id="meter-arc" cx="56" cy="56" r="48" fill="none" stroke="var(--series-1)" stroke-width="10" stroke-linecap="round" stroke-dasharray="301.6" stroke-dashoffset="301.6"/>
+        </svg>
+        <div class="meter-value"><b id="total-score">0</b><span>/ 100</span></div>
+      </div>
+      <div class="hero-text">
+        <b id="score-headline">—</b>
+        <p id="score-sub">อัปโหลดวิดีโอแล้วกดวิเคราะห์เพื่อดูผล</p>
+      </div>
+    </div>
+    <div style="margin-top:20px;" id="bars-wrap"></div>
+    <div class="disclaimer">คะแนนนี้เป็นการประมาณจากตำแหน่งข้อต่อที่ตรวจจับได้ด้วย MediaPipe Pose (โมเดล heuristic รุ่นแรก v0.1) ไม่ใช่การวัดทางวิทยาศาสตร์การกีฬาที่ผ่านการรับรอง ควรใช้ประกอบการฝึกซ้อมร่วมกับโค้ชจริง</div>
+  </div>
+
+</main>
+
+<script>
+// Boot check (classic script — runs even if the module below fails to load).
+// Without this the page would sit there doing nothing when the CDN import is
+// blocked, which looks identical to "the upload button is broken".
+(function () {
+  var banner = document.getElementById('error-banner');
+  function fail(title, detail) {
+    if (window.__appBooted) return;
+    banner.innerHTML = '<b>' + title + '</b>' + detail;
+    banner.style.display = 'block';
+    document.getElementById('loading-banner').style.display = 'none';
+  }
+  if (location.protocol === 'file:') {
+    fail('เปิดไฟล์แบบ file:// ไม่ได้',
+      'เบราว์เซอร์บล็อกการโหลดโมดูล/AI เมื่อเปิดไฟล์ HTML ตรง ๆ ต้องเปิดผ่านเว็บเซิร์ฟเวอร์ (http:// หรือ https://) เช่นรัน <code>python3 -m http.server</code> ในโฟลเดอร์นี้ แล้วเปิด <code>http://localhost:8000</code>');
+    return;
+  }
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') {
+      fail('โหลดสคริปต์ไม่สำเร็จ', 'ไม่สามารถโหลดไลบรารี MediaPipe จากอินเทอร์เน็ตได้ ตรวจสอบการเชื่อมต่อ แล้วลองเปิดในเบราว์เซอร์จริง (Safari/Chrome) แทนหน้าตัวอย่างในแอป');
+    }
+  }, true);
+  setTimeout(function () {
+    fail('แอปเริ่มทำงานไม่สำเร็จ',
+      'สคริปต์หลักไม่ถูกรัน มักเกิดจากเปิดหน้านี้ในตัวอย่าง (preview) ของแอปที่บล็อกการโหลดจากภายนอก — กรุณาเปิดลิงก์นี้ในเบราว์เซอร์จริง (Safari หรือ Chrome) ผ่าน https://');
+  }, 8000);
+})();
+</script>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.0/vision_bundle.mjs";
+
+// Tells the boot check above that the module actually loaded and ran.
+window.__appBooted = true;
+
+const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.0/wasm";
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
+const LM = { nose:0, lsh:11, rsh:12, lel:13, rel:14, lwr:15, rwr:16, lhip:23, rhip:24, lknee:25, rknee:26, lank:27, rank:28 };
+
+// Heuristic reference ranges per stroke type (prototype v0.1 — tune with real data over time).
+const STROKE_CONFIG = {
+  serve: {
+    weights: { legs:15, hip:20, shoulder:20, elbow:20, wrist:25 },
+    knee: { center:130, tol:22 },
+    hipRotation: { center:55, tol:22 },
+    xFactor: { center:40, tol:16 },
+    elbow: { center:168, tol:14 },
+    wristSpeed: { center:6.0, tol:3.0 }
+  },
+  forehand: {
+    weights: { legs:15, hip:20, shoulder:20, elbow:20, wrist:25 },
+    knee: { center:142, tol:22 },
+    hipRotation: { center:40, tol:16 },
+    xFactor: { center:30, tol:13 },
+    elbow: { center:155, tol:22 },
+    wristSpeed: { center:5.0, tol:2.6 }
+  },
+  backhand: {
+    weights: { legs:15, hip:20, shoulder:20, elbow:20, wrist:25 },
+    knee: { center:142, tol:22 },
+    hipRotation: { center:35, tol:16 },
+    xFactor: { center:26, tol:13 },
+    elbow: { center:145, tol:26 },
+    wristSpeed: { center:4.5, tol:2.6 }
+  }
+};
+
+const LABELS = {
+  legs: "ขา (แรงส่งจากพื้น)",
+  hip: "สะโพก (Hip Rotation)",
+  shoulder: "ลำตัว/ไหล่ (Trunk-Shoulder & X-Factor)",
+  elbow: "ศอก (Elbow)",
+  wrist: "ข้อมือ/ปลายแขน (Wrist & Racket Speed)"
+};
+
+const TIPS = {
+  legs: "ลองย่อเข่าให้พอดี ไม่ตึงหรืองอมากเกินไป เพื่อให้มีแรงส่งจากพื้นเต็มที่",
+  hip: "หมุนสะโพกให้มากขึ้นและเริ่มหมุนก่อนลำตัวส่วนบน เพื่อส่งแรงตามลำดับ kinetic chain",
+  shoulder: "เพิ่มการบิดลำตัว/ไหล่เทียบกับสะโพก (X-Factor) ให้มากขึ้นก่อนคลายออกตอนปะทะ",
+  elbow: "จังหวะเหยียดศอกยังไม่สัมพันธ์กับลำตัว ลองให้จังหวะเหยียดแขนตามหลังจังหวะบิดลำตัว",
+  wrist: "ความเร็ว/จังหวะการเหวี่ยงข้อมือยังไม่ตรงจุดปะทะพอดี ลองฝึกจับจังหวะสะบัดข้อมือให้ตรงจุดกระทบลูก"
+};
+
+const strokeLabel = s => ({ serve:"เสิร์ฟ", forehand:"โฟร์แฮนด์", backhand:"แบ็คแฮนด์" }[s]);
+
+// ---------- pose model ----------
+let poseLandmarker = null;
+let tsCounter = 0;
+
+async function createLandmarker(delegate) {
+  const vision = await FilesetResolver.forVisionTasks(WASM_BASE);
+  return PoseLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: MODEL_URL, delegate },
+    runningMode: "VIDEO",
+    numPoses: 1
+  });
+}
+
+async function initPose() {
+  const banner = document.getElementById('loading-banner');
+  banner.style.display = 'block';
+  banner.textContent = 'กำลังโหลดโมเดล AI (MediaPipe Pose)...';
+  try {
+    poseLandmarker = await createLandmarker("GPU");
+  } catch (e) {
+    try {
+      poseLandmarker = await createLandmarker("CPU");
+    } catch (e2) {
+      banner.style.display = 'none';
+      const err = document.getElementById('error-banner');
+      err.innerHTML = '<b>โหลดโมเดล AI ไม่สำเร็จ</b>' + e2.message +
+        ' — ลองรีเฟรชหน้า หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      err.style.display = 'block';
+      return;
+    }
+  }
+  banner.style.display = 'none';
+}
+initPose();
+
+// ---------- state ----------
+let frames = [];
+let frameMap = new Map();
+let loadMark = null;
+let contactMark = null;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const drawer = new DrawingUtils(ctx);
+
+document.getElementById('video-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  video.src = URL.createObjectURL(file);
+  document.getElementById('video-card').style.display = 'block';
+  document.getElementById('results-card').style.display = 'none';
+  frames = [];
+  frameMap.clear();
+  loadMark = null;
+  contactMark = null;
+  updateMarkUI();
+});
+
+video.addEventListener('loadedmetadata', () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+});
+
+function runDetectAndCache() {
+  if (!poseLandmarker || video.readyState < 2) return;
+  tsCounter += 1;
+  const ts = Math.max(tsCounter, Math.round(performance.now()));
+  tsCounter = ts;
+  const result = poseLandmarker.detectForVideo(video, ts);
+  drawResult(result);
+  if (result.landmarks?.[0] && result.worldLandmarks?.[0]) {
+    const key = Math.round(video.currentTime * 1000);
+    const frame = { t: video.currentTime, lm: result.landmarks[0], world: result.worldLandmarks[0] };
+    if (!frameMap.has(key)) frames.push(frame);
+    frameMap.set(key, frame);
+    document.getElementById('frame-count').textContent = 'เก็บข้อมูลท่าทางแล้ว ' + frameMap.size + ' เฟรม';
+  }
+}
+
+function drawResult(result) {
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (result.landmarks?.[0]) {
+    drawer.drawConnectors(result.landmarks[0], PoseLandmarker.POSE_CONNECTIONS, { color: '#3987e5', lineWidth: 3 });
+    drawer.drawLandmarks(result.landmarks[0], { color: '#eb6834', radius: 3 });
+  }
+  ctx.restore();
+}
+
+function onVideoFrame() {
+  runDetectAndCache();
+  if ('requestVideoFrameCallback' in video && !video.paused && !video.ended) {
+    video.requestVideoFrameCallback(onVideoFrame);
+  }
+}
+
+video.addEventListener('play', () => {
+  document.getElementById('play-btn').textContent = '⏸ หยุด';
+  if ('requestVideoFrameCallback' in video) {
+    video.requestVideoFrameCallback(onVideoFrame);
+  } else {
+    playLoopFallback();
+  }
+});
+video.addEventListener('pause', () => document.getElementById('play-btn').textContent = '▶ เล่น');
+
+function playLoopFallback() {
+  if (video.paused || video.ended) return;
+  runDetectAndCache();
+  requestAnimationFrame(playLoopFallback);
+}
+
+video.addEventListener('seeked', () => {
+  if (video.paused) runDetectAndCache();
+});
+
+document.getElementById('play-btn').addEventListener('click', () => {
+  if (video.paused) video.play(); else video.pause();
+});
+
+document.querySelectorAll('.speed-group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.speed-group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    video.playbackRate = parseFloat(btn.dataset.speed);
+  });
+});
+
+const ASSUMED_FPS = 30;
+document.getElementById('step-back').addEventListener('click', () => stepFrame(-1));
+document.getElementById('step-fwd').addEventListener('click', () => stepFrame(1));
+function stepFrame(dir) {
+  video.pause();
+  const dt = 1 / ASSUMED_FPS;
+  video.currentTime = Math.min(Math.max(video.duration - 0.001, 0), Math.max(0, video.currentTime + dir * dt));
+}
+
+function nearestFrame(t) {
+  if (frames.length === 0) return null;
+  let best = null, bestDiff = Infinity;
+  for (const f of frames) {
+    const d = Math.abs(f.t - t);
+    if (d < bestDiff) { bestDiff = d; best = f; }
+  }
+  return best;
+}
+
+document.getElementById('mark-load').addEventListener('click', () => {
+  const f = nearestFrame(video.currentTime);
+  if (!f) { alert('ยังไม่มีข้อมูลท่าทางที่เฟรมนี้ ลองเล่น/ขยับวิดีโอก่อนอีกครั้ง'); return; }
+  loadMark = f;
+  updateMarkUI();
+});
+document.getElementById('mark-contact').addEventListener('click', () => {
+  const f = nearestFrame(video.currentTime);
+  if (!f) { alert('ยังไม่มีข้อมูลท่าทางที่เฟรมนี้ ลองเล่น/ขยับวิดีโอก่อนอีกครั้ง'); return; }
+  contactMark = f;
+  updateMarkUI();
+});
+
+function updateMarkUI() {
+  document.getElementById('load-time').textContent = loadMark ? loadMark.t.toFixed(2) + 's' : 'ยังไม่ระบุ';
+  document.getElementById('contact-time').textContent = contactMark ? contactMark.t.toFixed(2) + 's' : 'ยังไม่ระบุ';
+  const ready = !!(loadMark && contactMark && contactMark.t > loadMark.t);
+  document.getElementById('analyze-btn').disabled = !ready;
+}
+
+// ---------- biomechanics ----------
+function angle3D(a, b, c) {
+  const bax = a.x - b.x, bay = a.y - b.y, baz = a.z - b.z;
+  const bcx = c.x - b.x, bcy = c.y - b.y, bcz = c.z - b.z;
+  const magA = Math.hypot(bax, bay, baz), magC = Math.hypot(bcx, bcy, bcz);
+  if (magA === 0 || magC === 0) return 0;
+  let cos = (bax * bcx + bay * bcy + baz * bcz) / (magA * magC);
+  cos = Math.max(-1, Math.min(1, cos));
+  return Math.acos(cos) * 180 / Math.PI;
+}
+function angleWrap(deg) {
+  let d = deg % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
+}
+function lineAngleXZ(p1, p2) {
+  return Math.atan2(p2.z - p1.z, p2.x - p1.x) * 180 / Math.PI;
+}
+function dist3D(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+const kneeAngle = (world, side) => angle3D(world[side === 'left' ? LM.lhip : LM.rhip], world[side === 'left' ? LM.lknee : LM.rknee], world[side === 'left' ? LM.lank : LM.rank]);
+const elbowAngle = (world, side) => angle3D(world[side === 'left' ? LM.lsh : LM.rsh], world[side === 'left' ? LM.lel : LM.rel], world[side === 'left' ? LM.lwr : LM.rwr]);
+const hipLineAngle = world => lineAngleXZ(world[LM.lhip], world[LM.rhip]);
+const shoulderLineAngle = world => lineAngleXZ(world[LM.lsh], world[LM.rsh]);
+
+function magnitudeScore(value, cfg) {
+  const z = (value - cfg.center) / cfg.tol;
+  return Math.max(0, Math.min(100, 100 * Math.exp(-0.5 * z * z)));
+}
+function seqScore(tPrev, tCurr, margin = 0.03) {
+  const diff = tCurr - tPrev;
+  if (diff >= margin) return 100;
+  if (diff >= 0) return 60 + 40 * (diff / margin);
+  if (diff >= -margin) return 60 * (1 + diff / margin);
+  return 0;
+}
+function proximityScore(t, target, tol = 0.06) {
+  const z = (t - target) / tol;
+  return Math.max(0, Math.min(100, 100 * Math.exp(-0.5 * z * z)));
+}
+
+function framesInRange() {
+  return frames.filter(f => f.t >= loadMark.t - 1e-6 && f.t <= contactMark.t + 1e-6).sort((a, b) => a.t - b.t);
+}
+
+function feedbackFor(key, score) {
+  if (score >= 85) return "ยอดเยี่ยม อยู่ในช่วงที่เหมาะสม";
+  if (score >= 65) return "ใช้ได้ ยังปรับปรุงได้อีกเล็กน้อย — " + TIPS[key];
+  return TIPS[key];
+}
+
+function analyze() {
+  const strokeType = document.getElementById('stroke-type').value;
+  const hand = document.getElementById('handedness').value;
+  const cfg = STROKE_CONFIG[strokeType];
+  const range = framesInRange();
+  const hasTiming = range.length >= 4;
+
+  const kneeLoad = Math.min(kneeAngle(loadMark.world, 'left'), kneeAngle(loadMark.world, 'right'));
+  const hipRotTotal = Math.abs(angleWrap(hipLineAngle(contactMark.world) - hipLineAngle(loadMark.world)));
+  const elbowContact = elbowAngle(contactMark.world, hand);
+  const wristIdx = hand === 'left' ? LM.lwr : LM.rwr;
+
+  let xFactorPeak = 0;
+  for (const f of range) {
+    const xf = Math.abs(angleWrap(shoulderLineAngle(f.world) - hipLineAngle(f.world)));
+    if (xf > xFactorPeak) xFactorPeak = xf;
+  }
+  if (range.length === 0) {
+    xFactorPeak = Math.abs(angleWrap(shoulderLineAngle(loadMark.world) - hipLineAngle(loadMark.world)));
+  }
+
+  let tHipPeak = null, tShoulderPeak = null, tElbowPeak = null, tWristPeak = null, wristSpeedPeak = 0;
+
+  if (hasTiming) {
+    let bestHip = -1, bestSh = -1, bestElVel = -Infinity, bestWrist = -1;
+    for (let i = 1; i < range.length; i++) {
+      const dt = range[i].t - range[i - 1].t;
+      if (dt <= 0) continue;
+      const hv = Math.abs(angleWrap(hipLineAngle(range[i].world) - hipLineAngle(range[i - 1].world))) / dt;
+      if (hv > bestHip) { bestHip = hv; tHipPeak = range[i].t; }
+      const sv = Math.abs(angleWrap(shoulderLineAngle(range[i].world) - shoulderLineAngle(range[i - 1].world))) / dt;
+      if (sv > bestSh) { bestSh = sv; tShoulderPeak = range[i].t; }
+      const ev = (elbowAngle(range[i].world, hand) - elbowAngle(range[i - 1].world, hand)) / dt;
+      if (ev > bestElVel) { bestElVel = ev; tElbowPeak = range[i].t; }
+      const wv = dist3D(range[i].world[wristIdx], range[i - 1].world[wristIdx]) / dt;
+      if (wv > bestWrist) { bestWrist = wv; tWristPeak = range[i].t; wristSpeedPeak = wv; }
+    }
+  } else {
+    const dt = contactMark.t - loadMark.t;
+    wristSpeedPeak = dt > 0 ? dist3D(contactMark.world[wristIdx], loadMark.world[wristIdx]) / dt : 0;
+  }
+
+  const legsScore = magnitudeScore(kneeLoad, cfg.knee);
+
+  const hipMag = magnitudeScore(hipRotTotal, cfg.hipRotation);
+  const hipScore = hasTiming ? hipMag * 0.7 + seqScore(loadMark.t, tHipPeak) * 0.3 : hipMag;
+
+  const shMag = magnitudeScore(xFactorPeak, cfg.xFactor);
+  const shoulderScore = hasTiming ? shMag * 0.7 + seqScore(tHipPeak, tShoulderPeak) * 0.3 : shMag;
+
+  const elMag = magnitudeScore(elbowContact, cfg.elbow);
+  const elbowScore = hasTiming ? elMag * 0.7 + seqScore(tShoulderPeak, tElbowPeak) * 0.3 : elMag;
+
+  const wrMag = magnitudeScore(wristSpeedPeak, cfg.wristSpeed);
+  let wristScore = wrMag;
+  if (hasTiming) {
+    const wrSeq = (seqScore(tElbowPeak, tWristPeak) + proximityScore(tWristPeak, contactMark.t)) / 2;
+    wristScore = wrMag * 0.7 + wrSeq * 0.3;
+  }
+
+  const w = cfg.weights;
+  const total = (legsScore * w.legs + hipScore * w.hip + shoulderScore * w.shoulder + elbowScore * w.elbow + wristScore * w.wrist) / 100;
+
+  renderResults({
+    total, hasTiming,
+    legs: { score: legsScore, detail: `มุมเข่าตอนย่อ: ${kneeLoad.toFixed(0)}°` },
+    hip: { score: hipScore, detail: `หมุนสะโพก: ${hipRotTotal.toFixed(0)}°` },
+    shoulder: { score: shoulderScore, detail: `X-Factor (บิดไหล่เทียบสะโพก): ${xFactorPeak.toFixed(0)}°` },
+    elbow: { score: elbowScore, detail: `มุมศอกตอนปะทะ: ${elbowContact.toFixed(0)}°` },
+    wrist: { score: wristScore, detail: `ความเร็วข้อมือ/ปลายแขน: ${wristSpeedPeak.toFixed(1)} m/s (โดยประมาณ)` }
+  }, strokeType);
+}
+
+function renderResults(data, strokeType) {
+  document.getElementById('results-card').style.display = 'block';
+  const total = Math.round(data.total);
+  document.getElementById('total-score').textContent = total;
+  const circumference = 301.6;
+  document.getElementById('meter-arc').style.strokeDashoffset = circumference * (1 - total / 100);
+
+  let headline = total >= 85 ? 'ฟอร์มดีมาก' : total >= 65 ? 'ฟอร์มใช้ได้' : 'ยังมีจุดต้องปรับ';
+  document.getElementById('score-headline').textContent = headline + ` (${strokeLabel(strokeType)})`;
+  document.getElementById('score-sub').textContent = data.hasTiming
+    ? 'วิเคราะห์จากทั้งมุมข้อต่อและจังหวะการส่งแรงตามลำดับ kinetic chain'
+    : 'มีข้อมูลเฟรมระหว่างจุดที่ทำเครื่องหมายน้อยเกินไป จึงให้คะแนนจากมุมข้อต่อเป็นหลัก (ยังไม่รวมจังหวะ) — ลองเล่นวิดีโอผ่านช่วงสวิงที่ 0.25x ก่อนทำเครื่องหมาย เพื่อความแม่นยำสูงขึ้น';
+
+  const wrap = document.getElementById('bars-wrap');
+  wrap.innerHTML = '';
+  ['legs', 'hip', 'shoulder', 'elbow', 'wrist'].forEach(key => {
+    const d = data[key];
+    const score = Math.round(d.score);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-label"><b>${LABELS[key]}</b><span class="val">${score}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${score}%"></div></div>
+      <div class="bar-note">${d.detail} — ${feedbackFor(key, d.score)}</div>
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+document.getElementById('analyze-btn').addEventListener('click', analyze);
+</script>
+</body>
+</html>
